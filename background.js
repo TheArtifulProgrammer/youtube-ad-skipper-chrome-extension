@@ -13,3 +13,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse(adProfileData);
   }
 });
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({ isSkippingEnabled: true });
+});
+
+
+chrome.runtime.onSuspend.addListener(() => {
+  // Save any necessary data before the extension is unloaded
+  chrome.storage.sync.set({
+    skipCount: skipCount,
+    adProfileData: adProfileData,
+  });
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  // Retrieve saved data when the extension is loaded
+  chrome.storage.sync.get(["skipCount", "adProfileData"], (data) => {
+    skipCount = data.skipCount || 0;
+    adProfileData = data.adProfileData || [];
+  });
+});
