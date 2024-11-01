@@ -1,6 +1,14 @@
 let skipCount = 0;
 let adProfileData = [];
 
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.sync.set({
+    isSkippingEnabled: true,
+    skipCount: 0,
+    adMetadata: [],
+  });
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "toggle-skip") {
     chrome.storage.sync.set({ isSkippingEnabled: message.isEnabled });
@@ -12,10 +20,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === "export-data") {
     sendResponse(adProfileData);
   }
-});
-
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set({ isSkippingEnabled: true });
 });
 
 
