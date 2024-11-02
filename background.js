@@ -15,6 +15,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === "skip-count-update") {
     skipCount = message.skipCount;
     chrome.action.setBadgeText({ text: skipCount.toString() });
+    chrome.action.setBadgeBackgroundColor({ color: "#4CAF50" });
   } else if (message.type === "ad-metadata") {
     adProfileData.push(message.data);
   } else if (message.type === "export-data") {
