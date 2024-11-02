@@ -19,30 +19,35 @@ function isButtonVisible(element) {
 }
 
 function skipAd() {
-  const skipButton = document.querySelector(".ytp-skip-ad-button");
+  const skipButton = document.querySelector("#skip-button\\:v");
 
   if (skipButton && isButtonVisible(skipButton)) {
     try {
       // Force the button to be visible and clickable
       skipButton.style.display = "block";
       skipButton.style.opacity = "1";
+      skipButton.style.zIndex = "1000"; // Bring to foreground
+      skipButton.dispatchEvent(new MouseEvent("mouseenter"));
+      skipButton.focus(); // Focus before click // Attempt to click with a small delay
+      skipButton.blur(); // simulate a click
 
-      // Try multiple click methods
-      skipButton.click();
-      skipButton.dispatchEvent(
-        new MouseEvent("click", {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-        })
-      );
+      setTimeout(() => {
+        skipButton.click();
+        skipButton.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+          })
+        );
+        skipButton.dispatchEvent(new MouseEvent("mousedown"));
+        skipButton.dispatchEvent(new MouseEvent("mouseup"));
+        console.log("Ad skip attempted");
+        skipCount++;
+        chrome.runtime.sendMessage({ type: "skip-count-update", skipCount }); // Track metadata after successful skip
 
-      console.log("Ad skip attempted");
-      skipCount++;
-      chrome.runtime.sendMessage({ type: "skip-count-update", skipCount });
-
-      // Track metadata after successful skip
-      trackMetadata();
+        trackMetadata();
+      }, 300); // Adjust delay if needed
     } catch (error) {
       console.error("Error clicking skip button:", error);
     }
