@@ -1,6 +1,7 @@
 let skipCount = 0;
 let adMetadata = [];
 let intervalId = null;
+let isExtensionValid = true;
 
 function isButtonVisible(element) {
   if (!element) return false;
@@ -18,36 +19,63 @@ function isButtonVisible(element) {
   );
 }
 
+function safeMessageSend(message) {
+  if (!isExtensionValid) return;
+  try {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        isExtensionValid = false;
+        console.error("Extension context invalidated");
+        stopSkipChecker();
+      }
+    });
+  } catch (error) {
+    isExtensionValid = false;
+    console.error("Failed to send message:", error);
+    stopSkipChecker();
+  }
+}
+
 function skipAd() {
-  const skipButton = document.querySelector("#skip-button\\:v");
+  // Updated selector to match both formats
+  const skipButton =
+    document.querySelector(".ytp-skip-ad-button") ||
+    document.querySelector("#skip-button\\:v") ||
+    document.querySelector('[class*="skip-button"]');
 
   if (skipButton && isButtonVisible(skipButton)) {
     try {
-      // Force the button to be visible and clickable
+      // Make button interactive
       skipButton.style.display = "block";
       skipButton.style.opacity = "1";
-      skipButton.style.zIndex = "1000"; // Bring to foreground
+      skipButton.style.zIndex = "1000";
+      skipButton.style.pointerEvents = "auto";
+
+      // Simulate natural interaction
+      const clickEvent = new MouseEvent("click", {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+        buttons: 1,
+      });
+
+      // Click sequence
       skipButton.dispatchEvent(new MouseEvent("mouseenter"));
-      skipButton.focus(); // Focus before click // Attempt to click with a small delay
-      skipButton.blur(); // simulate a click
+      skipButton.dispatchEvent(new MouseEvent("mousedown"));
+      skipButton.dispatchEvent(clickEvent);
+      skipButton.dispatchEvent(new MouseEvent("mouseup"));
+      skipButton.dispatchEvent(new MouseEvent("mouseleave"));
 
-      setTimeout(() => {
-        skipButton.click();
-        skipButton.dispatchEvent(
-          new MouseEvent("click", {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-          })
-        );
-        skipButton.dispatchEvent(new MouseEvent("mousedown"));
-        skipButton.dispatchEvent(new MouseEvent("mouseup"));
-        console.log("Ad skip attempted");
-        skipCount++;
-        chrome.runtime.sendMessage({ type: "skip-count-update", skipCount }); // Track metadata after successful skip
+      console.log("Ad skip attempted");
+      skipCount++;
 
-        trackMetadata();
-      }, 300); // Adjust delay if needed
+      // Safe message sending
+      safeMessageSend({
+        type: "skip-count-update",
+        skipCount,
+      });
+
+      trackMetadata();
     } catch (error) {
       console.error("Error clicking skip button:", error);
     }
@@ -63,21 +91,26 @@ function trackMetadata() {
     skipSuccess: true,
   };
   adMetadata.push(adData);
-  chrome.runtime.sendMessage({ type: "ad-metadata", data: adData });
+  safeMessageSend({
+    type: "ad-metadata",
+    data: adData,
+  });
 }
 
 function startSkipChecker() {
-  if (intervalId) {
-    clearInterval(intervalId);
-  }
+  stopSkipChecker(); // Clear existing interval if any
 
-  // Use a more frequent interval for better response
   intervalId = setInterval(() => {
+    if (!isExtensionValid) {
+      stopSkipChecker();
+      return;
+    }
+
     try {
       chrome.storage.sync.get("isSkippingEnabled", (data) => {
         if (chrome.runtime.lastError) {
-          console.error(chrome.runtime.lastError);
-          clearInterval(intervalId);
+          isExtensionValid = false;
+          stopSkipChecker();
           return;
         }
 
@@ -87,12 +120,37 @@ function startSkipChecker() {
       });
     } catch (error) {
       console.error("Error in skip checker:", error);
-      clearInterval(intervalId);
+      stopSkipChecker();
     }
-  }, 500); // Check more frequently for better response
+  }, 1000);
 }
 
-// Create a mutation observer to watch for new skip buttons
+function stopSkipChecker() {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+  if (observer) {
+    observer.disconnect();
+  }
+}
+
+// Mutation Observer setup
+const observer = new MutationObserver((mutations) => {
+  if (!isExtensionValid) {
+    observer.disconnect();
+    return;
+  }
+
+  for (const mutation of mutations) {
+    if (mutation.type === "childList" || mutation.type === "attributes") {
+      skipAd();
+      break;
+    }
+  }
+});
+
+// Observer configuration
 const observerConfig = {
   childList: true,
   subtree: true,
@@ -100,37 +158,34 @@ const observerConfig = {
   attributeFilter: ["style", "class"],
 };
 
-const observer = new MutationObserver((mutations) => {
-  mutations.forEach((mutation) => {
-    if (mutation.type === "childList" || mutation.type === "attributes") {
-      skipAd();
-    }
-  });
-});
-
-// Start observing the document
+// Start observers
 observer.observe(document.body, observerConfig);
-
-// Start the checker when the script loads
 startSkipChecker();
 
-// Listen for messages from the popup
+// Message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!isExtensionValid) return;
+
   if (message.type === "toggle-skip") {
     if (message.isEnabled) {
       startSkipChecker();
       observer.observe(document.body, observerConfig);
     } else {
-      clearInterval(intervalId);
-      observer.disconnect();
+      stopSkipChecker();
     }
   }
 });
 
-// Clean up when the script is unloaded
-window.addEventListener("unload", () => {
-  if (intervalId) {
-    clearInterval(intervalId);
+// Cleanup on page unload
+window.addEventListener("unload", stopSkipChecker);
+
+// Handle extension errors
+window.addEventListener("error", (event) => {
+  if (
+    event.error &&
+    event.error.message.includes("Extension context invalidated")
+  ) {
+    isExtensionValid = false;
+    stopSkipChecker();
   }
-  observer.disconnect();
 });
