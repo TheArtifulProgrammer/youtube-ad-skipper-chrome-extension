@@ -33,7 +33,7 @@ This extension is licensed for personal use only, with all rights reserved by th
 
 ---
 
-**Author:** [Your Name or Handle]
+**Author:** TheArtifulProgrammer
 
 For any inquiries or contributions, feel free to reach out or support via the "Buy Me a Coffee" button in the extension.
 
