@@ -43,4 +43,4 @@ For any inquiries or contributions, feel free to reach out or support via the "B
 
 ---
 
-This project is provided "as is" without warranty of any kind. Use at your own risk.
+This project is provided "as is" without warranty of any kind. You can use it at your own risk.
