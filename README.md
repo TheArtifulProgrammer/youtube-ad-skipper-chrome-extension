@@ -1,4 +1,4 @@
-# YouTube Ad Skipper Extension
+# YouTube Ad Skipper Extension - ```Development Discontinued```
 
 This Chrome extension automatically skips YouTube ads, tracks ad interactions, and allows users to export metadata for further analysis. It is built with performance and modularity in mind, keeping CPU and memory usage low.
 
